@@ -1,4 +1,5 @@
 #include "blocks.h"
+#include <cmath>
 
 namespace structured_part
 {
@@ -23,4 +24,24 @@ std::pair<SplitBlock, SplitBlock> splitBlock(const SplitBlock& splitBlock, Split
   return std::make_pair(SplitBlock(splitBlock.meshblock, left_element_counts, left_mesh_offsets),
                         SplitBlock(splitBlock.meshblock, right_element_counts, right_mesh_offsets));
 }
+
+
+std::pair<SplitBlock, SplitBlock> splitBlock(const SplitBlock& split_block)
+{
+  UInt max_dir = 0;
+  UInt max_elem_per_dir = split_block.element_counts[0];
+  for (UInt i=1; i < 3; ++i)
+  {
+    if (split_block.element_counts[i] > max_elem_per_dir)
+    {
+      max_dir = i;
+      max_elem_per_dir = split_block.element_counts[i];
+    }
+  }
+
+  UInt nelem = std::floor(double(max_elem_per_dir) / 2);
+
+  return splitBlock(split_block, static_cast<SplitDirection>(max_dir), nelem);
+}
+
 }

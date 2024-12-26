@@ -16,6 +16,7 @@ TEST(MeshBlock, Fields)
   MeshBlock block(1, 3, 4, 5);
   EXPECT_EQ(block.block_id, 1);
   EXPECT_EQ(block.element_counts, make_array({3, 4, 5}));
+  EXPECT_EQ(block.weight, 3*4*5);
 }
 
 TEST(SplitBlock, Fields)
@@ -49,10 +50,12 @@ TEST(SplitBlock, SplitBlockX1Element)
    EXPECT_EQ(left_block.meshblock, block);
    EXPECT_EQ(left_block.element_counts, make_array({1, 5, 6}));
    EXPECT_EQ(left_block.mesh_offsets,   make_array({0, 0, 0}));
+   EXPECT_NEAR(left_block.weight, block->weight * double(1*5*6)/(4*5*6), 1e-13);
 
    EXPECT_EQ(right_block.meshblock, block);
    EXPECT_EQ(right_block.element_counts, make_array({3, 5, 6}));
    EXPECT_EQ(right_block.mesh_offsets,   make_array({1, 0, 0}));
+   EXPECT_NEAR(right_block.weight, block->weight*double(3*5*6)/(4*5*6), 1e-13);
 }
 
 TEST(SplitBlock, SplitBlockXAllElements)

@@ -200,10 +200,12 @@ TEST(Presplit, AssignBlocksToProcs2Block2Proc)
 
 TEST(Presplit, AssignBlocksToProcs3Block2Proc)
 {
-  std::vector<std::shared_ptr<MeshBlock>> mesh_blocks = {std::make_shared<MeshBlock>(0, 10, 10, 1)};
+  std::vector<std::shared_ptr<MeshBlock>> mesh_blocks = {std::make_shared<MeshBlock>(0, 10, 10, 1),
+                                                         std::make_shared<MeshBlock>(1, 10, 10, 1)};
+
   std::vector<SplitBlock> split_blocks = {SplitBlock(mesh_blocks[0], {5, 10, 1}, {0, 0, 0}),
                                           SplitBlock(mesh_blocks[0], {2, 10, 1}, {5, 0, 0}),
-                                          SplitBlock(mesh_blocks[0], {3, 10, 1}, {7, 0, 0})};
+                                          SplitBlock(mesh_blocks[1], {3, 10, 1}, {7, 0, 0})};
   UInt nprocs = 2;
 
   std::vector<std::vector<SplitBlock>> blocks_on_procs = assignBlocksToProcs(split_blocks, nprocs);
@@ -214,4 +216,15 @@ TEST(Presplit, AssignBlocksToProcs3Block2Proc)
   EXPECT_EQ(blocks_on_procs[1].size(), 2);
   EXPECT_EQ(blocks_on_procs[1][0], split_blocks[2]);
   EXPECT_EQ(blocks_on_procs[1][1], split_blocks[1]);
+}
+
+TEST(Presplit, AssignBlocksToProcs3Block2ProcThrow)
+{
+  std::vector<std::shared_ptr<MeshBlock>> mesh_blocks = {std::make_shared<MeshBlock>(0, 10, 10, 1)};
+
+  std::vector<SplitBlock> split_blocks = {SplitBlock(mesh_blocks[0], {5, 10, 1}, {0, 0, 0}),
+                                          SplitBlock(mesh_blocks[0], {2, 10, 1}, {5, 0, 0}),
+                                          SplitBlock(mesh_blocks[0], {3, 10, 1}, {7, 0, 0})};
+  UInt nprocs = 2;
+  EXPECT_ANY_THROW(assignBlocksToProcs(split_blocks, nprocs));
 }

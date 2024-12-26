@@ -1,3 +1,5 @@
+#ifndef STRUCTURED_PART_ARRAY_HELPERS_H
+#define STRUCTURED_PART_ARRAY_HELPERS_H
 #include "ProjectDefs.h"
 #include <iostream>
 #include <array>
@@ -22,3 +24,5 @@ std::ostream& operator<<(std::ostream& os, const std::vector<T>& arr)
 }
 
 }
+
+#endif

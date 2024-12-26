@@ -1,3 +1,6 @@
+#ifndef STRUCTURED_PART_BLOCKS_H
+#define STRUCTURED_PART_BLOCKS_H
+
 #include "ProjectDefs.h"
 #include <memory>
 #include <cassert>
@@ -96,3 +99,5 @@ std::pair<SplitBlock, SplitBlock> splitBlock(const SplitBlock& splitBlock);
 
 
 }  // namespace
+
+#endif

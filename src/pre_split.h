@@ -1,4 +1,5 @@
 #include "blocks.h"
+#include <algorithm>
 #include <cmath>
 #include <vector>
 #include <numeric>
@@ -26,7 +27,7 @@ UInt getMostUnderWeightBlock(const std::vector<std::shared_ptr<MeshBlock>>& mesh
   {
     double weight_per_split_block = mesh_blocks[i]->weight / num_splits_per_block[i];
 
-    if (num_splits_per_block[i] > 0 && weight_per_split_block < min_weight)
+    if (num_splits_per_block[i] > 1 && weight_per_split_block < min_weight)
     {
       min_weight = weight_per_split_block;
       block_most_under_weight = i;
@@ -44,7 +45,7 @@ UInt getMostUnderWeightBlock(const std::vector<std::shared_ptr<MeshBlock>>& mesh
 UInt getMostOverWeightBlock(const std::vector<std::shared_ptr<MeshBlock>>& mesh_blocks, const std::vector<UInt>& num_splits_per_block)
 {
   UInt block_most_under_weight = -1;
-  double max_weight = std::numeric_limits<double>::max();
+  double max_weight = std::numeric_limits<double>::min();
   for (UInt i=0; i < mesh_blocks.size(); ++i)
   {
     double weight_per_split_block = mesh_blocks[i]->weight / num_splits_per_block[i];
@@ -81,15 +82,9 @@ UInt factor_int(UInt integer)
 }
 */
 
-std::vector<SplitBlock> splitBlock(const std::shared_ptr<MeshBlock>& input_block, UInt num_split_blocks)
+// computes a decomposition of roughly equally sized block with number of blocks <= num_split_blocks
+std::array<UInt, 3> computeEvenlyDivisibleBlockGrid(const std::shared_ptr<MeshBlock>& input_block, UInt num_split_blocks)
 {
-  // the difficulty here is that if num_split_blocks is a prime number, then the only
-  // possible decomposition with equal areas is n x 1 x 1, which is bad for parallel
-  // communication.  Instead, break the block into two pieces and divide the remaining splits between them
-  // TODO: this only works for 2D.  For 3D, we need factors close to the cube root of n
-
-
-  //std::array<UInt, 3> max_blocks_per_direction = input_block.element_counts;
   std::array<UInt, 3> num_blocks_per_direction = {1, 1, 1};
   std::array<double, 3> num_elems_per_directions = {static_cast<double>(input_block->element_counts[0]),
                                                     static_cast<double>(input_block->element_counts[1]),
@@ -122,8 +117,11 @@ std::vector<SplitBlock> splitBlock(const std::shared_ptr<MeshBlock>& input_block
     num_elems_per_directions[max_direction] = double(input_block->element_counts[max_direction]) / num_blocks_per_direction[max_direction];
   }
 
+  return num_blocks_per_direction;
+}
 
-
+std::array<std::vector<UInt>, 3> computeNumElementsPerBlock(const std::shared_ptr<MeshBlock>& input_block, const std::array<UInt, 3>& num_blocks_per_direction)
+{
   std::array<std::vector<UInt>, 3> num_elem_per_block;
   for (UInt d=0; d < 3; ++d)
   {
@@ -143,7 +141,12 @@ std::vector<SplitBlock> splitBlock(const std::shared_ptr<MeshBlock>& input_block
     }
   }
 
-  
+  return num_elem_per_block;  
+}
+
+std::vector<SplitBlock> createSplitBlocks(const std::shared_ptr<MeshBlock>& input_block, const std::array<std::vector<UInt>, 3>& num_elem_per_block)
+{
+  std::array<UInt, 3> num_blocks_per_direction = {num_elem_per_block[0].size(), num_elem_per_block[1].size(), num_elem_per_block[2].size()};
 
   std::vector<SplitBlock> new_blocks;
   std::array<UInt, 3> block_offset = {0, 0, 0};
@@ -166,6 +169,11 @@ std::vector<SplitBlock> splitBlock(const std::shared_ptr<MeshBlock>& input_block
     block_offset[0] += num_elem_per_block[0][i];
   }
 
+  return new_blocks;
+}
+
+void splitBlocksToFillRemainder(std::vector<SplitBlock>& new_blocks, int num_split_blocks)
+{
   while (new_blocks.size() < num_split_blocks)
   {
     UInt max_block_idx = 0;
@@ -184,22 +192,46 @@ std::vector<SplitBlock> splitBlock(const std::shared_ptr<MeshBlock>& input_block
 
     new_blocks[max_block_idx] = left_block;
     new_blocks.push_back(right_block);
-  }
+  }  
+}
+
+
+std::vector<SplitBlock> splitBlock(const std::shared_ptr<MeshBlock>& input_block, UInt num_split_blocks)
+{
+  // the difficulty here is that if num_split_blocks is a prime number, then the only
+  // possible decomposition with equal areas is n x 1 x 1, which is bad for parallel
+  // communication.  Instead, break the block into two pieces and divide the remaining splits between them
+  // TODO: this only works for 2D.  For 3D, we need factors close to the cube root of n
+
+  std::array<UInt, 3> num_blocks_per_direction = computeEvenlyDivisibleBlockGrid(input_block, num_split_blocks);
+  std::array<std::vector<UInt>, 3> num_elem_per_block = computeNumElementsPerBlock(input_block, num_blocks_per_direction);
+  
+  std::vector<SplitBlock> new_blocks = createSplitBlocks(input_block, num_elem_per_block);
+  splitBlocksToFillRemainder(new_blocks, num_split_blocks);
 
   return new_blocks;
 }
 
-/*
+
 std::vector<SplitBlock> splitBlocks(const std::vector<std::shared_ptr<MeshBlock>>& mesh_blocks, const std::vector<UInt>& num_splits_per_block)
 {
+  std::vector<SplitBlock> split_blocks;
+  for (UInt i=0; i < mesh_blocks.size(); ++i)
+  {
+    std::vector<SplitBlock> new_blocks = splitBlock(mesh_blocks[i], num_splits_per_block[i]);
+    for (const auto& new_block : new_blocks)
+      split_blocks.push_back(new_block);
+  }
 
+  return split_blocks;
 }
-*/
 
-/*
-std::vector<SplitBlock> preSplit(const std::vector<std::shared_ptr<MeshBlock>>& mesh_blocks, UInt nprocs)
+// returns a vector telling how many sub-blocks to split each block into
+std::vector<UInt> computeNumSubBlocks(const std::vector<std::shared_ptr<MeshBlock>>& mesh_blocks, UInt nprocs)
 {
+
   double avg_weight_per_proc = computeAvgWorkPerProc(mesh_blocks, nprocs);
+  std::cout << "avg weight per proc = " << avg_weight_per_proc << std::endl;
 
   std::vector<UInt> num_splits_per_block(mesh_blocks.size(), 0);
   UInt num_splits = 0;  // num splits is the number of sub-blocks to split 
@@ -207,9 +239,12 @@ std::vector<SplitBlock> preSplit(const std::vector<std::shared_ptr<MeshBlock>>& 
 
   for (UInt i=0; i < mesh_blocks.size(); ++i)
   {
-    num_splits_per_block[i] = std::ceil(mesh_blocks[i]->weight / avg_weight_per_proc);
-    num_splits++;
+    num_splits_per_block[i] = std::max(std::ceil(mesh_blocks[i]->weight / avg_weight_per_proc), 1.0);
+    std::cout << "initially, block " << i << " has " << num_splits_per_block[i] << " sub blocks" << std::endl;
+    num_splits += num_splits_per_block[i];
   }
+
+  std::cout << "num_splits = " << num_splits << std::endl;
 
   // adjust splits so there are at least as many sub-blocks as procs
   while (num_splits != nprocs)
@@ -218,7 +253,8 @@ std::vector<SplitBlock> preSplit(const std::vector<std::shared_ptr<MeshBlock>>& 
     {
       //TODO: we could just sort the blocks by avg work and choose the first n
       UInt block_most_under_weight = getMostUnderWeightBlock(mesh_blocks, num_splits_per_block);
-      assert(num_splits_per_block[block_most_under_weight] > 0);
+      std::cout << "reducing number of sub-blocks for block " << block_most_under_weight << std::endl;
+      assert(num_splits_per_block[block_most_under_weight] > 1);
       num_splits_per_block[block_most_under_weight]--;
       num_splits--;
     } else
@@ -229,7 +265,57 @@ std::vector<SplitBlock> preSplit(const std::vector<std::shared_ptr<MeshBlock>>& 
     }
   }
 
-  return splitBlocks(mesh_blocks, num_splits_per_block);
+  return num_splits_per_block;
 }
-*/
+
+UInt getProcWithMinWeight(const std::vector<std::vector<SplitBlock>>& blocks_on_proc)
+{
+  UInt nprocs = blocks_on_proc.size();
+  UInt min_proc = 0.0;
+  double min_weight = std::numeric_limits<double>::max();
+  for (UInt i=0; i < nprocs; ++i)
+  {
+    double weight_on_proc = 0.0;
+    for (const SplitBlock& block : blocks_on_proc[i])
+      weight_on_proc += block.weight;
+
+    if (weight_on_proc < min_weight)
+    {
+      min_proc = i;
+      min_weight = weight_on_proc;
+    }
+  }
+
+  return min_proc;
+}
+
+std::vector<std::vector<SplitBlock>> assignBlocksToProcs(std::vector<SplitBlock> split_blocks, UInt nprocs)
+{
+  auto sortByWeight = [](const SplitBlock& lhs, const SplitBlock& rhs)
+  {
+    return lhs.weight < rhs.weight;
+  };
+
+  std::sort(split_blocks.begin(), split_blocks.end(), sortByWeight);
+  
+  std::vector<std::vector<SplitBlock>> blocks_on_proc(nprocs);
+  while (!split_blocks.empty())
+  {
+    UInt min_proc = getProcWithMinWeight(blocks_on_proc);
+    blocks_on_proc[min_proc].push_back(split_blocks.back());
+    split_blocks.pop_back();
+  }
+
+  return blocks_on_proc;
+}
+
+
+
+std::vector<std::vector<SplitBlock>> preSplit(const std::vector<std::shared_ptr<MeshBlock>>& mesh_blocks, UInt nprocs)
+{
+  std::vector<UInt> num_splits_per_block = computeNumSubBlocks(mesh_blocks, nprocs);
+  std::vector<SplitBlock> split_blocks = splitBlocks(mesh_blocks, num_splits_per_block);
+  return assignBlocksToProcs(split_blocks, nprocs);
+}
+
 } // namespace

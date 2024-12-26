@@ -65,6 +65,18 @@ inline std::ostream& operator<<(std::ostream& os, const SplitBlock& block)
   return os;
 }
 
+inline bool operator!=(const SplitBlock& lhs, const SplitBlock& rhs)
+{
+  return lhs.meshblock != rhs.meshblock ||
+         lhs.element_counts != rhs.element_counts ||
+         lhs.mesh_offsets != rhs.mesh_offsets;
+}
+
+inline bool operator==(const SplitBlock& lhs, const SplitBlock& rhs)
+{
+  return !(lhs != rhs);
+}
+
 
 
 enum class SplitDirection

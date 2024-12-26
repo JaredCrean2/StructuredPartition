@@ -29,6 +29,40 @@ TEST(SplitBlock, Fields)
    EXPECT_EQ(splitBlock.mesh_offsets, make_array({1, 1, 1}));
 }
 
+TEST(SplitBlock, EqualityOperatorMeshBlockNotSame)
+{
+  auto meshblock1 = std::make_shared<MeshBlock>(1, 3, 4, 5);
+  auto meshblock2 = std::make_shared<MeshBlock>(1, 3, 4, 5);
+
+  SplitBlock lhs(meshblock1, {1, 1, 1}, {0, 0, 0});
+  SplitBlock rhs(meshblock2, {1, 1, 1}, {0, 0, 0});
+
+  EXPECT_TRUE(lhs != rhs);
+  EXPECT_FALSE(lhs == rhs);
+}
+
+TEST(SplitBlock, EqualityOperatorElementCountsNotSame)
+{
+  auto meshblock1 = std::make_shared<MeshBlock>(1, 3, 4, 5);
+
+  SplitBlock lhs(meshblock1, {1, 1, 1}, {0, 0, 0});
+  SplitBlock rhs(meshblock1, {1, 1, 2}, {0, 0, 0});
+
+  EXPECT_TRUE(lhs != rhs);
+  EXPECT_FALSE(lhs == rhs);
+}
+
+TEST(SplitBlock, EqualityOperatorMeshOffsetNotSame)
+{
+  auto meshblock1 = std::make_shared<MeshBlock>(1, 3, 4, 5);
+
+  SplitBlock lhs(meshblock1, {1, 1, 1}, {0, 0, 0});
+  SplitBlock rhs(meshblock1, {1, 1, 1}, {0, 1, 0});
+
+  EXPECT_TRUE(lhs != rhs);
+  EXPECT_FALSE(lhs == rhs);
+}
+
 // To test: for each direction
 //   - 0, num_elem, middle value
 

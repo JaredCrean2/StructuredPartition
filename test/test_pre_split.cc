@@ -360,7 +360,7 @@ TEST(Presplit, Stats4Blocks100Procs)
 
 TEST(Presplit, Stats4Blocks100ProcsOneSmallBlock)
 {
-  std::vector<std::shared_ptr<MeshBlock>> mesh_blocks = {std::make_shared<MeshBlock>(0, 100, 100, 1),
+  std::vector<std::shared_ptr<MeshBlock>> mesh_blocks = {std::make_shared<MeshBlock>(0, 101, 100, 1),
                                                          std::make_shared<MeshBlock>(1, 100, 100, 1),
                                                          std::make_shared<MeshBlock>(2, 100, 100, 1),
                                                          std::make_shared<MeshBlock>(3, 10, 10, 1)};

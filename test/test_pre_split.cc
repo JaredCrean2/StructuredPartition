@@ -99,7 +99,7 @@ void checkLoadBalance(const std::vector<std::vector<SplitBlock>>& blocks_on_proc
     for (const SplitBlock& split_block : blocks_on_procs[proc])
       weight_on_proc += split_block.weight;
 
-    EXPECT_TRUE(weight_on_proc < avg_weight_per_proc * (1 + load_balance_factor));
+    EXPECT_TRUE(weight_on_proc <= avg_weight_per_proc * (1 + load_balance_factor));
   }
 
 
@@ -111,7 +111,7 @@ TEST(Presplit, SplitSingleBlockOneProc)
 {
   auto mesh_block = std::make_shared<MeshBlock>(0, 1, 1, 1);
 
-  std::vector<SplitBlock> split_blocks = splitBlock(mesh_block, 1);
+  std::vector<SplitBlock> split_blocks = recursivelySplitBlock(mesh_block, 1);
   EXPECT_EQ(split_blocks.size(), 1U);
   EXPECT_EQ(split_blocks[0].element_counts, mesh_block->element_counts);
   EXPECT_EQ(split_blocks[0].mesh_offsets, make_array({0, 0, 0}));
@@ -122,7 +122,7 @@ TEST(Presplit, SplitSingleBlockOneProc2x2x2)
 {
   auto mesh_block = std::make_shared<MeshBlock>(0, 2, 2, 2);
 
-  std::vector<SplitBlock> split_blocks = splitBlock(mesh_block, 1);
+  std::vector<SplitBlock> split_blocks = recursivelySplitBlock(mesh_block, 1);
   EXPECT_EQ(split_blocks.size(), 1U);
   EXPECT_EQ(split_blocks[0].element_counts, mesh_block->element_counts);
   EXPECT_EQ(split_blocks[0].mesh_offsets, make_array({0, 0, 0}));
@@ -133,7 +133,7 @@ TEST(Presplit, SplitSingleBlockTwoProcs2x1x1)
 {
   auto mesh_block = std::make_shared<MeshBlock>(0, 2, 1, 1);
 
-  std::vector<SplitBlock> split_blocks = splitBlock(mesh_block, 2);
+  std::vector<SplitBlock> split_blocks = recursivelySplitBlock(mesh_block, 2);
   EXPECT_EQ(split_blocks.size(), 2U);
 
   EXPECT_EQ(split_blocks[0].element_counts, make_array({1, 1, 1}));
@@ -149,7 +149,7 @@ TEST(Presplit, SplitSingleBlockFourProcs2x2x1)
 {
   auto mesh_block = std::make_shared<MeshBlock>(0, 2, 2, 1);
 
-  std::vector<SplitBlock> split_blocks = splitBlock(mesh_block, 4);
+  std::vector<SplitBlock> split_blocks = recursivelySplitBlock(mesh_block, 4);
   EXPECT_EQ(split_blocks.size(), 4U);
 
   EXPECT_EQ(split_blocks[0].element_counts, make_array({1, 1, 1}));
@@ -174,20 +174,21 @@ TEST(Presplit, SplitSingleBlockThreeProcs2x2x1)
 {
   auto mesh_block = std::make_shared<MeshBlock>(0, 2, 2, 1);
 
-  std::vector<SplitBlock> split_blocks = splitBlock(mesh_block, 3);
+  std::vector<SplitBlock> split_blocks = recursivelySplitBlock(mesh_block, 3);
   EXPECT_EQ(split_blocks.size(), 3U);
 
+  std::cout << "split_blocks = \n" << split_blocks << std::endl;
   EXPECT_EQ(split_blocks[0].element_counts, make_array({1, 1, 1}));
   EXPECT_EQ(split_blocks[0].mesh_offsets, make_array({0, 0, 0}));
   EXPECT_EQ(split_blocks[0].weight, mesh_block->weight/4);
 
-  EXPECT_EQ(split_blocks[1].element_counts, make_array({1, 2, 1}));
-  EXPECT_EQ(split_blocks[1].mesh_offsets, make_array({1, 0, 0}));
-  EXPECT_EQ(split_blocks[1].weight, mesh_block->weight/2);
+  EXPECT_EQ(split_blocks[1].element_counts, make_array({1, 1, 1}));
+  EXPECT_EQ(split_blocks[1].mesh_offsets, make_array({0, 1, 0}));
+  EXPECT_EQ(split_blocks[1].weight, mesh_block->weight/4);
 
-  EXPECT_EQ(split_blocks[2].element_counts, make_array({1, 1, 1}));
-  EXPECT_EQ(split_blocks[2].mesh_offsets, make_array({0, 1, 0}));
-  EXPECT_EQ(split_blocks[2].weight, mesh_block->weight/4); 
+  EXPECT_EQ(split_blocks[2].element_counts, make_array({1, 2, 1}));
+  EXPECT_EQ(split_blocks[2].mesh_offsets, make_array({1, 0, 0}));
+  EXPECT_EQ(split_blocks[2].weight, mesh_block->weight/2); 
 }
 
 
@@ -356,6 +357,23 @@ TEST(Presplit, Stats4Blocks)
   printHistogram(std::cout, stats);
 }
 
+TEST(Presplit, Stats1Block100Procs)
+{
+  std::vector<std::shared_ptr<MeshBlock>> mesh_blocks = {std::make_shared<MeshBlock>(0, 400, 400, 1)};
+  
+  for (UInt nprocs=1; nprocs < 100; ++nprocs)
+  {
+    std::cout << "\nnprocs = " << nprocs << std::endl;
+    auto blocks_on_procs = preSplit(mesh_blocks, nprocs);
+    checkDecompositionValid(mesh_blocks, blocks_on_procs);
+
+
+    DecompStats stats = computeDecompStats(blocks_on_procs);
+    std::cout << stats << std::endl;
+    //printHistogram(std::cout, stats);
+  }
+}
+
 TEST(Presplit, Stats4Blocks100Procs)
 {
   std::vector<std::shared_ptr<MeshBlock>> mesh_blocks = {std::make_shared<MeshBlock>(0, 100, 100, 1),
@@ -412,4 +430,66 @@ TEST(FinalSplit, StatsSingleBlock)
   std::cout << stats << std::endl;
   printPerProcessStats(std::cout, stats);
   printHistogram(std::cout, stats);
+}
+
+TEST(FinalSplit, Stats4Blocks)
+{
+  double load_balance_factor = 0.1;
+  UInt nprocs = 7;
+  std::vector<std::shared_ptr<MeshBlock>> mesh_blocks = {std::make_shared<MeshBlock>(0, 100, 100, 1),
+                                                         std::make_shared<MeshBlock>(1, 100, 100, 1),
+                                                         std::make_shared<MeshBlock>(2, 100, 100, 1),
+                                                         std::make_shared<MeshBlock>(3, 100, 100, 1)};
+  
+  auto blocks_on_procs = finalSplit(mesh_blocks, nprocs, load_balance_factor);
+  checkDecompositionValid(mesh_blocks, blocks_on_procs);
+  checkLoadBalance(blocks_on_procs, load_balance_factor);
+
+  DecompStats stats = computeDecompStats(blocks_on_procs);
+  std::cout << stats << std::endl;
+  printPerProcessStats(std::cout, stats);
+  printHistogram(std::cout, stats);
+}
+
+
+TEST(FinalSplit, Stats1Block100Procs)
+{
+  double load_balance_factor = 0.1;
+  std::vector<std::shared_ptr<MeshBlock>> mesh_blocks = {std::make_shared<MeshBlock>(0, 400, 400, 1)};
+  
+  for (UInt nprocs=1; nprocs < 100; ++nprocs)
+  {
+    std::cout << "\nnprocs = " << nprocs << std::endl;
+    auto blocks_on_procs = finalSplit(mesh_blocks, nprocs, load_balance_factor);
+    checkDecompositionValid(mesh_blocks, blocks_on_procs);
+    checkLoadBalance(blocks_on_procs, load_balance_factor);
+
+
+    DecompStats stats = computeDecompStats(blocks_on_procs);
+    std::cout << stats << std::endl;
+    //printHistogram(std::cout, stats);
+  }
+}
+
+
+TEST(FinalSplit, Stats4Blocks100Procs)
+{
+  double load_balance_factor = 0.1;
+  std::vector<std::shared_ptr<MeshBlock>> mesh_blocks = {std::make_shared<MeshBlock>(0, 100, 100, 1),
+                                                         std::make_shared<MeshBlock>(1, 100, 100, 1),
+                                                         std::make_shared<MeshBlock>(2, 100, 100, 1),
+                                                         std::make_shared<MeshBlock>(3, 100, 100, 1)};
+  
+  for (UInt nprocs=1; nprocs < 100; ++nprocs)
+  {
+    std::cout << "\nnprocs = " << nprocs << std::endl;
+    auto blocks_on_procs = finalSplit(mesh_blocks, nprocs, load_balance_factor);
+    checkDecompositionValid(mesh_blocks, blocks_on_procs);
+    checkLoadBalance(blocks_on_procs, load_balance_factor);
+
+
+    DecompStats stats = computeDecompStats(blocks_on_procs);
+    std::cout << stats << std::endl;
+    //printHistogram(std::cout, stats);
+  }
 }

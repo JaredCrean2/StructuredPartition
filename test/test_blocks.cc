@@ -29,6 +29,16 @@ TEST(SplitBlock, Fields)
    EXPECT_EQ(splitBlock.mesh_offsets, make_array({1, 1, 1}));
 }
 
+TEST(SplitBlock, ConstructFromMeshBlock)
+{
+   auto block = std::make_shared<MeshBlock>(1, 3, 4, 5);
+
+   SplitBlock splitBlock(block);
+   EXPECT_EQ(splitBlock.meshblock, block);
+   EXPECT_EQ(splitBlock.element_counts, block->element_counts);
+   EXPECT_EQ(splitBlock.mesh_offsets, make_array({0, 0, 0}));
+}
+
 TEST(SplitBlock, EqualityOperatorMeshBlockNotSame)
 {
   auto meshblock1 = std::make_shared<MeshBlock>(1, 3, 4, 5);
@@ -164,4 +174,35 @@ TEST(SplitBlock, SplitBlockZAllElements)
    SplitBlock split_block(block, {4, 5, 6}, {0, 0, 0});
 
    EXPECT_ANY_THROW(splitBlock(split_block, SplitDirection::K, split_block.element_counts[2]));
+}
+
+TEST(SplitBlock, SplitBlockByWeightMidPoint)
+{
+   auto block = std::make_shared<MeshBlock>(1, 4, 5, 6);
+   SplitBlock split_block(block, {4, 5, 6}, {0, 0, 0});   
+   auto [left_block, right_block] = splitBlock(split_block, 0.5);
+
+   EXPECT_EQ(left_block.meshblock, block);
+   EXPECT_EQ(left_block.element_counts, make_array({4, 5, 3}));
+   EXPECT_EQ(left_block.mesh_offsets, make_array({0, 0, 0}));
+
+   EXPECT_EQ(right_block.meshblock, block);
+   EXPECT_EQ(right_block.element_counts, make_array({4, 5, 3}));
+   EXPECT_EQ(right_block.mesh_offsets, make_array({0, 0, 3}));
+}
+
+TEST(SplitBlock, RoundSmallerBlockDown)
+{
+  // This rounding behavior is important when recursively dividing
+  // blocks because sometimes the remainder block can be too large.
+  // One example is if a 400x400x1 block gets split 57 ways.  If
+  // the remainder block is 8x400x1 it is larger than any of the 56
+  // blocks in the main block, causing load imblanace.  Better to have
+  // it be 7x400x1
+  auto block = std::make_shared<MeshBlock>(1, 400, 400, 1);
+  SplitBlock split_block(block);  
+  double weight = 56.0/57;
+  auto [left_block, right_block] = splitBlock(split_block, weight);
+  EXPECT_EQ(left_block.element_counts[0], 393);
+  EXPECT_EQ(right_block.element_counts[0], 7);  
 }

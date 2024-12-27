@@ -73,4 +73,19 @@ std::vector<std::vector<SplitBlock>> assignBlocksToProcs(std::vector<SplitBlock>
   return blocks_on_proc;
 }
 
+void printBlockAssigments(std::ostream& os, const std::vector<std::vector<SplitBlock>>& blocks_on_procs)
+{
+  for (UInt proc=0; proc < blocks_on_procs.size(); ++proc)
+  {
+    std::cout << "\nproc " << proc << std::endl;
+    double weight = 0.0;
+    for (const SplitBlock& split_block : blocks_on_procs[proc])
+    {
+      std::cout << split_block << std::endl; 
+      weight += split_block.weight;
+    }
+    std::cout << "proc total weight = " << weight << std::endl;
+  }
+}
+
 }

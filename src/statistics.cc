@@ -41,7 +41,8 @@ std::ostream& operator<<(std::ostream& os, const DecompStats& stats)
 {
   os << "decomp with " << stats.num_blocks << " sub-blocks" << std::endl;
   os << "min, max, avg weight = " << stats.min_weight << ", " << stats.max_weight << ", " << stats.avg_weight_per_process << std::endl;
-  os << "min, max, avg blocks per proc " << stats.min_blocks_per_proc << ", " << stats.max_blocks_per_proc << ", " << stats.avg_blocks_per_proc;
+  os << "min, max, avg blocks per proc " << stats.min_blocks_per_proc << ", " << stats.max_blocks_per_proc << ", " << stats.avg_blocks_per_proc << std::endl;
+  os << "max load imbalance overage % = " << 100 * (stats.max_weight - stats.avg_weight_per_process)/stats.avg_weight_per_process;
 
   return os;
 }

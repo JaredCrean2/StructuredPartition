@@ -11,6 +11,8 @@ UInt getProcWithMinWeightAndDifferentParent(const std::vector<std::vector<SplitB
 
 std::vector<std::vector<SplitBlock>> assignBlocksToProcs(std::vector<SplitBlock> split_blocks, UInt nprocs);
 
+void printBlockAssigments(std::ostream& os, const std::vector<std::vector<SplitBlock>>& blocks_on_procs);
+
 }
 
 #endif

@@ -55,6 +55,10 @@ struct SplitBlock
       assert(mesh_offsets[i] + element_counts[i] <= meshblock->element_counts[i]);
     }
   }  
+
+  explicit SplitBlock(std::shared_ptr<MeshBlock> meshblock) :
+    SplitBlock(meshblock, meshblock->element_counts, {0, 0, 0})
+  {}  
     
   std::shared_ptr<MeshBlock> meshblock;
   std::array<UInt, 3> element_counts;
@@ -64,7 +68,7 @@ struct SplitBlock
 
 inline std::ostream& operator<<(std::ostream& os, const SplitBlock& block)
 {
-  os << "split block with dim = " << block.element_counts << ", offset into parent block = " << block.mesh_offsets << ", weight = " << block.weight << std::endl;
+  os << "split block with dim = " << block.element_counts << ", offset into parent block = " << block.mesh_offsets << ", weight = " << block.weight << ", parent block = " << block.meshblock->block_id << std::endl;
   return os;
 }
 
@@ -96,6 +100,12 @@ std::pair<SplitBlock, SplitBlock> splitBlock(const SplitBlock& splitBlock, Split
 
 // splits block in half along longest axis
 std::pair<SplitBlock, SplitBlock> splitBlock(const SplitBlock& splitBlock);
+
+// splits block along longest axis such that the first block return has approximately the given
+// fraction of the elements in the block, and the second returned block has 1 - fraction of
+// the elements
+std::pair<SplitBlock, SplitBlock> splitBlock(const SplitBlock& splitBlock, double fraction);
+
 
 
 }  // namespace

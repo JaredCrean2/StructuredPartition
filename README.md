@@ -15,7 +15,7 @@ the possibility that they might be adjacent to each other)
 The only dependencies for this package are a C++17 compiler, and GoogleTest if you wish to build the tests.  To build:
 
 ```
-# clone the repository, creating the "structured_partition" directory
+git clone https://github.com/JaredCrean2/StructuredPartition.git
 cd ./structured_partition
 mkdir -v ./build
 cd ./build
@@ -56,12 +56,12 @@ for (int i=0; i < nblocks; ++i)
   size_t nx = , ny = , nz = ;  // get the number of elements in block i
   int block_id = ; // get the block id of your mesh block.
                    // structured_partition never uses this, but it will
-                   // enable you to relate the split block backs to the
+                   // enable you to relate the split blocks back to the
                    // original mesh block in your mesh data structure
   mesh_blocks.push_back(std::make_shared<structured_part::MeshBlock>(block_id, nx, ny, nz);
 }
 
-std::vector<std::vector<structured_part::SplitBlock>> blocks_on_procs = structured_part::final_split(mesh_blocks, nprocs, load_balance_factor);
+std::vector<std::vector<structured_part::SplitBlock>> blocks_on_procs = structured_part::partitionMesh(mesh_blocks, nprocs, load_balance_factor);
 
 // blocks_on_procs is a vector with length nprocs.
 // blocks_on_procs[i] is a vector of SplitBlocks giving rectangular

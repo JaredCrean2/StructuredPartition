@@ -5,6 +5,7 @@ file(GLOB src_files *.cc)
 
 add_library(structured_partition "${src_files}")
 target_include_directories(structured_partition PUBLIC
+                          "${CMAKE_CURRENT_SOURCE_DIR}"
                           "${PROJECT_BINARY_DIR}/include"  # needed for configured header
 )
 

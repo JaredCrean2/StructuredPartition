@@ -1,6 +1,7 @@
 #include "gtest/gtest.h"
 #include "pre_split.h"
 #include "statistics.h"
+#include "final_split.h"
 
 using namespace structured_part;
 
@@ -77,14 +78,31 @@ void checkDecompositionValid(const std::vector<std::shared_ptr<MeshBlock>>& mesh
     }
 
   for (const Array3D& element_usage : element_usage_counts)
-  {
     for (UInt i=0; i < element_usage.extent(0); ++i)
       for (UInt j=0; j < element_usage.extent(1); ++j)
         for (UInt k=0; k < element_usage.extent(2); ++k)
-        {
           EXPECT_EQ(element_usage(i, j, k), 1);
-        }
+}
+
+void checkLoadBalance(const std::vector<std::vector<SplitBlock>>& blocks_on_procs, double load_balance_factor)
+{
+  double avg_weight_per_proc = 0.0;
+  for (UInt proc=0; proc < blocks_on_procs.size(); ++proc)
+    for (const SplitBlock& split_block : blocks_on_procs[proc])
+      avg_weight_per_proc += split_block.weight;
+
+  avg_weight_per_proc /= blocks_on_procs.size();
+
+  for (UInt proc=0; proc < blocks_on_procs.size(); ++proc)
+  {
+    double weight_on_proc = 0.0;
+    for (const SplitBlock& split_block : blocks_on_procs[proc])
+      weight_on_proc += split_block.weight;
+
+    EXPECT_TRUE(weight_on_proc < avg_weight_per_proc * (1 + load_balance_factor));
   }
+
+
 }
 
 }
@@ -375,4 +393,23 @@ TEST(Presplit, Stats4Blocks100ProcsOneSmallBlock)
     std::cout << stats << std::endl;
     //printHistogram(std::cout, stats);
   }
+}
+
+
+
+//TODO: these should be in a different file
+
+TEST(FinalSplit, StatsSingleBlock)
+{
+  UInt nprocs = 7;
+  double load_balance_factor = 0.1;
+  std::vector<std::shared_ptr<MeshBlock>> mesh_blocks = {std::make_shared<MeshBlock>(0, 100, 100, 1)};
+  auto blocks_on_procs = finalSplit(mesh_blocks, nprocs, load_balance_factor);
+  checkDecompositionValid(mesh_blocks, blocks_on_procs);
+  checkLoadBalance(blocks_on_procs, load_balance_factor);
+
+  DecompStats stats = computeDecompStats(blocks_on_procs);
+  std::cout << stats << std::endl;
+  printPerProcessStats(std::cout, stats);
+  printHistogram(std::cout, stats);
 }

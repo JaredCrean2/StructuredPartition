@@ -19,10 +19,6 @@ std::array<std::vector<UInt>, 3> computeNumElementsPerBlock(const std::shared_pt
 
 std::vector<SplitBlock> createSplitBlocks(const std::shared_ptr<MeshBlock>& input_block, const std::array<std::vector<UInt>, 3>& num_elem_per_block);
 
-//void splitBlocksToFillRemainder(std::vector<SplitBlock>& new_blocks, int num_split_blocks);
-
-//std::vector<SplitBlock> splitBlock(const std::shared_ptr<MeshBlock>& input_block, UInt num_split_blocks);
-
 std::vector<SplitBlock> recursivelySplitBlock(const SplitBlock& input_block, UInt num_split_blocks);
 
 std::vector<SplitBlock> recursivelySplitBlock(std::shared_ptr<MeshBlock> input_block, UInt num_split_blocks);

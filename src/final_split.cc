@@ -71,8 +71,6 @@ void splitUntilLoadBalanced(std::vector<std::vector<SplitBlock>>& blocks_on_proc
   // avoid spitting into too small pieces
   // The value is a little bit arbitrary
   constexpr double max_split_fraction = 0.8;
-  //std::cout << "initial block assignments: " << std::endl;
-  //printBlockAssigments(std::cout, blocks_on_procs);
 
   //TODO: its unfortunate we have to use a map for this
   std::map<std::shared_ptr<MeshBlock>, UInt> block_split_counts;
@@ -83,20 +81,13 @@ void splitUntilLoadBalanced(std::vector<std::vector<SplitBlock>>& blocks_on_proc
   auto [most_overweight_proc, max_weight_per_proc ] = computeMostOverWeightProc(blocks_on_procs);
   while (max_weight_per_proc > avg_weight_per_proc * (1 + load_balance_factor))
   {
-    //std::cout << "most overweight proc = " << most_overweight_proc << std::endl;
-    //std::cout << "max weight = " << max_weight_per_proc << std::endl;
     // this is a trick to avoid having to find the largest_block in the flattened array
     SplitBlock* largest_block = findLargestBlock(blocks_on_procs[most_overweight_proc], block_split_counts, nprocs);
 
-    //TODO: maybe instead of splitting in half, split off the amount of work that would make this
-    //      proc perfectly balanced?
     double split_fraction = (max_weight_per_proc - avg_weight_per_proc) / largest_block->weight;
     split_fraction = std::min(split_fraction, max_split_fraction);
-    //std::cout << "split_fraction = " << split_fraction << std::endl;
-    //std::cout << "splitting block " << *largest_block << std::endl;
+
     auto [left_block, right_block] = splitBlock(*largest_block, split_fraction);
-    //std::cout << "left_block = " << left_block << std::endl;
-    //std::cout << "right_block = " << right_block << std::endl;
     *largest_block = left_block;
 
     std::vector<SplitBlock> split_blocks = flattenSplitBlocks(blocks_on_procs);
@@ -105,12 +96,7 @@ void splitUntilLoadBalanced(std::vector<std::vector<SplitBlock>>& blocks_on_proc
     block_split_counts[right_block.meshblock]++;
 
     blocks_on_procs = assignBlocksToProcs(split_blocks, nprocs);
-    std::tie(most_overweight_proc, max_weight_per_proc) = computeMostOverWeightProc(blocks_on_procs);
-
-    //std::cout << "new block assignments: " << std::endl;
-    //printBlockAssigments(std::cout, blocks_on_procs);
-    //std::cout << "new most overweight proc = " << most_overweight_proc << std::endl;
-    //std::cout << "new max weight = " << max_weight_per_proc << std::endl;    
+    std::tie(most_overweight_proc, max_weight_per_proc) = computeMostOverWeightProc(blocks_on_procs); 
   }
 }
 
